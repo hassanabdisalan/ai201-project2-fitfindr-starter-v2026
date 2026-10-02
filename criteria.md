@@ -24,10 +24,12 @@ data earns credit; *"80% seemed reasonable"* does not.
 Given a query that matches at least one listing, the agent completes all three
 tool calls and returns a fit card — in at least 4 of 5 tries.
 
-**Why this target:**
-<!-- Why 4 of 5 and not 5 of 5? Something about your search, probably —
-     "my search is a plain keyword match and some phrasings will miss" is a
-     real answer. -->
+**Why this target:** Not 5 of 5, because `search_listings` is a plain keyword
+overlap over a small listings file: a phrasing like "band tee" may not share a
+word with a listing tagged "graphic tee", and two of the three steps call a
+model that can be rate-limited. Not 3 of 5, because for the example queries in
+`python app.py examples` the listing titles and tags contain the keywords, so a
+miss would mean a real bug.
 
 ---
 
@@ -36,67 +38,57 @@ tool calls and returns a fit card — in at least 4 of 5 tries.
 Given a query that matches no listings, the agent stops before calling
 `suggest_outfit` and returns a message naming what to change — 5 of 5 tries.
 
-**Why this target:**
-<!-- Why is 5 of 5 reasonable here when criterion 1 isn't? What's different
-     about this path? -->
+**Why this target:** This path never calls a model. It is a single
+`if not results` check in `agent.py::run_agent` on the empty list that
+`search_listings` returns, so nothing random or rate-limited can interfere.
+A miss would be a logic bug, not bad luck, which is why 5 of 5 is fair here and
+isn't for criterion 1.
 
 ---
 
 ## 3. Something about state
 
-<!-- YOU WRITE THIS ONE.
+For 5 queries that each match at least one listing, the `id` of
+`session["search_results"][0]` equals the `id` of `session["selected_item"]`,
+and also equals the `id` of the `new_item` dict that `suggest_outfit` received
+(check by wrapping `suggest_outfit` to record its argument) — 5 of 5 queries.
 
-     How would you know that the item your search found is the same item the
-     next tool received? Name something countable or observable.
-
-     This is the criterion people find hardest, because state failure doesn't
-     look like state failure — it looks like a tool problem. Something that
-     compares session["selected_item"] against what actually reached
-     suggest_outfit is the shape you're after. -->
-
-
-
-**Why this target:**
-
-
+**Why this target:** State passing is plain dict assignment inside `run_agent`,
+with no model involved, so it should be exact. A wrong item here would look like
+a bad outfit suggestion, not a state bug, so the check compares ids rather than
+reading the output. The loop always picks the first result, which makes the
+expected id known in advance.
 
 ---
 
 ## 4. Something about the fit card
 
-<!-- YOU WRITE THIS ONE.
+For 5 different listings, each fit card is 2 to 4 sentences long, contains the
+listing's price (e.g. "$24") and its platform name (e.g. "depop") — in at least
+4 of 5 cards — and no two of the 5 cards start with the same first sentence.
 
-     The fit card calls a model, so the same input can produce different words
-     each time. That's not a bug — it's the nature of the tool. So what would
-     make it acceptable?
-
-     Think about what you'd actually be unhappy to see. A caption that never
-     mentions the price? Two different items producing the same opening
-     sentence? A card longer than a caption anyone would post? Any of those can
-     be turned into a number. -->
-
-
-
-**Why this target:**
-
-
+**Why this target:** The words vary by design, so I can't check exact text, only
+facts that must appear. Price and platform come straight from the listing dict,
+so a card without them ignored its input. 4 of 5 rather than 5 of 5 because the
+model sometimes writes "under thirty bucks" instead of "$24", which a string
+check would count as a miss. The distinct-opening rule is there because with
+`TEMPERATURE` low or `CACHE_ENABLED` on, different items can get near-identical
+captions.
 
 ---
 
 ## 5. Your choice
 
-<!-- YOU WRITE THIS ONE TOO.
+For 5 queries that include a price ceiling (e.g. "under $30", "under $20"),
+every listing `search_listings` returns has `price` less than or equal to that
+ceiling — 5 of 5 queries, with zero over-ceiling listings in any result list.
 
-     Pick something you actually care about getting right. Speed, the empty
-     wardrobe path, what happens when the model can't be reached, whether the
-     search respects a price ceiling — anything, as long as it names a number
-     or an observable outcome. -->
-
-
-
-**Why this target:**
-
-
+**Why this target:** Price is a float field on every listing, and the filter is
+a single numeric comparison with no model involved, so there is no excuse for a
+miss. The risk is in parsing: `agent.py` has to pull "$30" out of the query, and
+in PowerShell a double-quoted "$30" silently becomes no ceiling at all. An
+over-budget item shown to a thrifter is the most visible failure this agent can
+have, so I'm not allowing any exceptions.
 
 ---
 
