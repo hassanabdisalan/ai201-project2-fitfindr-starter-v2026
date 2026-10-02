@@ -121,19 +121,40 @@ $ python app.py ask '...'
 **The three tools, tested one at a time**
 
 ```
-$ python -c "from tools import search_listings; print(search_listings('graphic tee', max_price=30))"
+$ python -c "from tools import search_listings as s; print([(l['id'],l['title'],l['price']) for l in s('graphic tee', max_price=30)])"
+[('lst_002', 'Y2K Baby Tee — Butterfly Print', 18.0), ('lst_006', 'Graphic Tee — 2003 Tour Bootleg Style', 24.0), ('lst_033', 'Vintage Band Tee — Faded Grey', 19.0), ('lst_015', 'Vintage Graphic Hoodie — Faded Black', 26.0), ('lst_017', 'Mesh Long-Sleeve Top — Black', 15.0), ('lst_011', 'Low-Rise Cargo Pants — Khaki', 27.0), ('lst_012', 'Oversized Crewneck Sweatshirt — Vintage Navy', 20.0)]
 
+$ python -c "from tools import search_listings as s; print(s('designer ballgown', size='XXS', max_price=5)); print([l['size'] for l in s('top', size='S')])"
+[]
+['S/M', 'S/M', 'S/M']
 ```
 
 ```
-$ python -c "from tools import suggest_outfit; ..."
+$ python -c "from tools import suggest_outfit; from utils.data_loader import get_example_wardrobe, get_empty_wardrobe, load_listings; print(suggest_outfit(load_listings()[0], get_example_wardrobe())); print(suggest_outfit(load_listings()[0], get_empty_wardrobe()))"
+**Outfit 1: Casual Streetwear**
+Pair the vintage Levi's with the **white ribbed tank top** tucked in, layered under the **black cropped zip hoodie**. Add the **chunky white sneakers** and accessorize with the **black crossbody bag**.
 
+**Outfit 2: Relaxed Layers**
+Wear the jeans with the **white ribbed tank top**, thrown over with the **oversized grey crewneck sweatshirt**. Cinch the waist using the **brown leather belt** and ground the look with the **black combat boots**.
+--- empty wardrobe (general advice, not an error) ---
+Vintage 501s are a goldmine—they instantly ground an outfit with classic texture.
+
+**Look 1: Effortless Casual**
+Pair the jeans with a tucked-in white ribbed tank or a vintage band tee. Layer with an oversized black leather biker jacket and retro canvas sneakers (like Converse or Vans) for a timeless, streetwear-leaning vibe.
+...
 ```
 
 ```
-$ python -c "from tools import create_fit_card; ..."
+$ AI201_CACHE=0 python -c "from tools import create_fit_card; from utils.data_loader import load_listings; print(create_fit_card('jeans and white sneakers', load_listings()[0]))"   # run 3 times
+Finally tracked down the holy grail vintage Levi's 501 jeans on depop for $38 and they fit like an absolute dream. The wash has that perfectly broken-in, 90s off-duty model vibe without trying too hard. ...
+Scored these vintage Levi's 501 jeans on Depop for $38 and I am never taking them off. They’ve got that perfectly broken-in, effortless 90s slouch that’s impossible to fake. ...
+scored these vintage Levi's 501 jeans on depop for $38 and my effortless-cool era is officially locked in. obsessed with the medium wash and how they look just a little beat up in the best way possible. ...
 
+$ python -c "from tools import create_fit_card; from utils.data_loader import load_listings; print(repr(create_fit_card('   ', load_listings()[0])))"
+'No outfit to write a caption for — suggest_outfit returned nothing.'
 ```
+
+With the cache on, the same three runs printed one word-for-word identical caption; `TEMPERATURE` was already 0.9, so the cache was the cause.
 
 ---
 
