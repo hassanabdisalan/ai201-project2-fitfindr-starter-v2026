@@ -39,8 +39,7 @@
 
 ## What This Does
 
-<!-- Three or four sentences: what a user asks for, and what they get back. -->
-
+A user types a plain-language request for a secondhand clothing item, such as "vintage graphic tee under $30" or "90s track jacket in size M". FitFindr searches a file of listings from Depop, Poshmark and thredUp, picks the best match, and returns that listing, one or two outfit ideas that use pieces from the user's own wardrobe (or general styling advice if the wardrobe is empty), and a short social-post-style fit card about the find. If nothing in the listings matches, it stops early and tells the user which part of the request to loosen (price, size, or keywords) instead of inventing an outfit.
 
 
 ---
@@ -190,15 +189,15 @@ With the cache on, the same three runs printed one word-for-word identical capti
 
 **Moment 1**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* `create_fit_card`, then I ran it three times on the same item as the brief suggested.
+- *What came back:* Three word-for-word identical captions. `TEMPERATURE` in `config.py` was already 0.9, so it wasn't that; each run was a separate process with the response cache on and an identical prompt. Running again with `AI201_CACHE=0` gave three different captions. Those captions also said "posting them on depop later today", treating the platform as where the user would sell the item.
+- *What I changed:* Nothing in the code for the cache, since it is a build-time feature that the evaluation runs switch off; I recorded the finding under Sample Run. I changed the prompt label from "Platform:" to "Found on:" and asked for "the platform it was found on", and the captions then said "found ... on Depop".
 
 **Moment 2**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* The query parser in `agent.py` (`parse_query`) to pull a size, a price ceiling and a description out of a sentence.
+- *What came back:* The price worked but the size was `None` for "90s track jacket in size M" and "platform sneakers size 8". The size regex used `\b` inside a normal (non-raw) string, so Python turned it into a backspace character and the pattern could never match. Without a size, `search_listings` skips size filtering, so the agent would have shown wrong-size items with no error.
+- *What I changed:* I printed `parse_query` for six example queries, saw the `None` sizes, and replaced the backspace characters with a real `\b`. All six then parsed correctly, for example `{'description': 'platform sneakers', 'size': '8', 'max_price': None}`.
 
 <!-- ═══════════════════════ UNIT 4 — THE TEST ═══════════════════════
 
