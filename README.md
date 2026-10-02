@@ -96,11 +96,11 @@
 
 **Branch rule:** If `search_listings` returns an empty list, put a message in `session["error"]` telling the user what to change (loosen the price, drop the size, use fewer keywords) and return the session without calling `suggest_outfit` or `create_fit_card`. Otherwise take the first result as `session["selected_item"]`, call `suggest_outfit`, then `create_fit_card`, and return the session.
 
-**Where it lives:** `agent.py::run_agent`
+**Where it lives:** `agent.py::run_agent` (the `if not session["search_results"]` check in the `search` step)
 
-**How the query is parsed:** <!-- regex, string splitting, or asking the model — say which -->
+**How the query is parsed:** regexes in `agent.py::parse_query`, no model call. A price after "under / below / less than / max / up to" or a `$`; a size after "size" or "in" (e.g. "size M", "in M"); the rest is the description.
 
-**What moves through the session:** <!-- which fields, in what order -->
+**What moves through the session:** `query` → `parsed` (description, size, max_price) → `search_results` → `selected_item` (the first result) → `outfit_suggestion` → `fit_card`. `error` is set only when the search is empty, and then the later fields stay `None`. Each tool reads its input back out of the session rather than receiving the previous return value directly.
 
 ---
 
@@ -114,8 +114,29 @@
 **One full query**
 
 ```
-$ python app.py ask '...'
+$ python app.py ask 'vintage graphic tee under $30'
 
+Found:    Y2K Baby Tee — Butterfly Print — $18.0 on depop
+
+  Outfit:   **Outfit 1: Casual Y2K Contrast**
+Pair the baby tee with your **Baggy straight-leg jeans, dark wash** for classic 2000s proportions. Add the **Brown leather belt**, **Chunky white sneakers**, and throw on the **Vintage black denim jacket** for a cool, effortless finish. 
+
+**Outfit 2: Soft & Structured**
+Tuck the tee into your **Wide-leg khaki trousers** to balance the slim fit with relaxed tailoring. Layer the **Black cropped zip hoodie** unzipped over top, and ground the look with your **Black combat boots** for an easy mix of sweet and edgy.
+
+  Fit card: scored this butterfly print Y2K baby tee on depop for eighteen bucks and honestly I'm obsessed. been living for that whole baggy jeans meets tiny top proportion lately. definitely throwing a black zip hoodie over it for that effortless soft-meets-edgy vibe.
+
+0 model calls this session, 2 served from cache
+```
+
+**The empty-search path**
+
+```
+$ python app.py ask 'designer ballgown size XXS under $5'
+
+  Nothing matched "designer ballgown". Try to raise the price limit above $5; or drop the size (XXS) or try a neighbouring one; or use fewer or more general keywords (e.g. 'jacket' instead of a specific style).
+
+0 model calls this session
 ```
 
 **The three tools, tested one at a time**
