@@ -273,15 +273,21 @@ that produced it:
 
 | # | Criterion | Target | Verdict | How I decided |
 |---|---|---|---|---|
-| 1 |  |  |  |  |
-| 2 |  |  |  |  |
-| 3 |  |  |  |  |
-| 4 |  |  |  |  |
-| 5 |  |  |  |  |
+| 1 | A matching query completes all three tools | 4 of 5 | MET | 5 passes in 5 tries: no early stop, an outfit and a fit card every time. |
+| 2 | An impossible query stops before the second tool | 5 of 5 | MET | 5 of 5: `suggest_outfit` was called 0 times and `fit_card` stayed None, with the "Try to raise the price limit…" message each time. |
+| 3 | `search_results[0]` id = `selected_item` id = id passed to `suggest_outfit` | 5 of 5 | MET | 5 queries, and the three ids matched on every one (e.g. lst_002 / lst_002 / [lst_002]). |
+| 4 | Fit card: 2-4 sentences, price + platform, distinct openings | 4 of 5 | MET | All 5 cards had 3 sentences, the price and the platform, and 5 different first sentences. That includes the two `brand=None` listings. |
+| 5 | No result over the price ceiling | 5 of 5 | MET | 5 queries with a parsed ceiling, 0 over-ceiling listings in any result list. |
+
+No criterion was revised.
 
 **Diagnoses**
 
+I missed nothing, so there is no miss to diagnose. I'm reading that as a sign that some targets were too easy, not that the agent is finished.
 
+- **Criterion 1 is set too low.** The target was 4 of 5, but the five tries all ran the same query, `vintage graphic tee under $30`, whose words appear in the listing titles and tags. That can't show the phrasing weakness the criterion's own "why" names. A quick check on `search_listings` with other phrasings found one: `graphic t-shirt` ranks "Y2K Baby Tee" and "Oversized Flannel Shirt" first, because the tokenizer in `tools.py::_tokens` splits "t-shirt" into `t` and `shirt`, so it matches any "shirt". The tighter target is **5 of 5 across 5 different phrasings of the same item** ("graphic tee", "band tee", "graphic t-shirt", "vintage tour shirt", "90s tee"), where the top result must be a tee. I expect this to miss, in `search_listings`.
+- **Criterion 4 is too easy to meet with 4 of 5.** All 5 cards passed, including the two with `brand=None`, so the allowance for one miss wasn't needed. The tighter target is 5 of 5 cards over 10 listings, with no two sharing an opening.
+- **Criteria 2, 3 and 5 are fine at 5 of 5.** They are deterministic code paths with no model involved, so no tighter number exists.
 
 ---
 
