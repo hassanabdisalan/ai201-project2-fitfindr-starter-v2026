@@ -42,7 +42,10 @@ def _stem(word: str) -> str:
 
 
 def _tokens(text: str) -> set[str]:
-    words = re.findall(r"[a-z0-9]+", text.lower())
+    # "t-shirt", "t shirt" and "tshirt" all mean "tee"; without this the
+    # tokenizer reads them as the letter "t" plus "shirt" (or one unknown word).
+    text = re.sub(r"\bt[\s-]?shirts?\b", "tee", text.lower())
+    words = re.findall(r"[a-z0-9]+", text)
     return {_stem(w) for w in words if w not in _STOPWORDS}
 
 

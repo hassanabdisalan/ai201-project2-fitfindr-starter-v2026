@@ -199,6 +199,13 @@ With the cache on, the same three runs printed one word-for-word identical capti
 - *What came back:* The price worked but the size was `None` for "90s track jacket in size M" and "platform sneakers size 8". The size regex used `\b` inside a normal (non-raw) string, so Python turned it into a backspace character and the pattern could never match. Without a size, `search_listings` skips size filtering, so the agent would have shown wrong-size items with no error.
 - *What I changed:* I printed `parse_query` for six example queries, saw the `None` sizes, and replaced the backspace characters with a real `\b`. All six then parsed correctly, for example `{'description': 'platform sneakers', 'size': '8', 'max_price': None}`.
 
+
+**Moment 3 (unit 4)**
+
+- *What I asked for:* the MCP move, the trace calls and the model-unavailable handler, then a before/after test of one fix.
+- *What came back:* it worked, but the first bad-key test used a query that matched nothing, so it hit the empty-search branch and never reached the model; I had to rerun with a query that has results. Later, the tokenizer fix came back with a backspace character in the regex again (the same bug as Moment 2), so my first "after" run was a no-op that still scored 2/5.
+- *What I changed:* I checked the file for the 0x08 character, replaced it with a real ``, and only then ran the after log, which scored 5/5.
+
 <!-- ═══════════════════════ UNIT 4 — THE TEST ═══════════════════════
 
      Don't fill these in during unit 3.
@@ -353,35 +360,51 @@ I missed nothing, so there is no miss to diagnose. I'm reading that as a sign th
 
      `python run_eval.py --label after` -->
 
-**What I changed:**
+**What I changed:** one line in `tools.py::_tokens`: before splitting a query or a listing into words, `re.sub(r"t[\s-]?shirts?", "tee", ...)` turns "t-shirt", "t shirt" and "tshirt" into "tee". Nothing else in the agent changed.
 
-**Which failure it was meant to fix:**
+**Which failure it was meant to fix:** the weakness named under Diagnoses for criterion 1. My original criterion-1 runs all used one query (`vintage graphic tee under $30`), so I added a tighter measurement: five phrasings of the same item, each of which must complete all three tools and select a tee. Run before the fix, that measurement was MISSED (2/5): `t-shirt` and `vintage t-shirt` selected "Oversized Flannel Shirt" because the tokenizer read "t-shirt" as the letter `t` plus `shirt`, and `tshirt` matched nothing, so the agent stopped at the empty-search branch. The place was the tool (`search_listings`, in its tokenizer); the model was not involved.
+
+This tighter criterion-1 measurement is an addition, not a lowered target: the original line in criteria.md is untouched and the target is still 4 of 5.
+
+### Run Log — Before (criterion 1 measured with five phrasings)
+
+| Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
+|---|---|---|---|---|---|---|---|
+| 1. Matching query completes all three tools, top result is a tee (5 phrasings) | 4 of 5 | PASS | PASS | FAIL | FAIL | FAIL | MISSED (2/5) |
+| 2. Impossible query stops before suggest_outfit | 5/5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 3. search_results[0] = selected_item = id passed to suggest_outfit | 5/5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 4. Fit card: 2-4 sentences, price + platform, distinct openings | ≥4/5 | PASS | PASS | PASS | PASS | PASS | MET (5/5 openings distinct=True) |
+| 5. No result over the price ceiling | 5/5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+
+Source: `results/criteria_before_phrasings.md`. Criteria 2-5 are the same checks as the first Before log, so they came out the same (5/5 each).
 
 ### Run Log — After
 
 | Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
 |---|---|---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |  |  |
+| 1. Matching query completes all three tools, top result is a tee (5 phrasings) | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 2. Impossible query stops before suggest_outfit | 5/5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 3. search_results[0] = selected_item = id passed to suggest_outfit | 5/5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 4. Fit card: 2-4 sentences, price + platform, distinct openings | ≥4/5 | PASS | PASS | PASS | PASS | PASS | MET (5/5 openings distinct=True) |
+| 5. No result over the price ceiling | 5/5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
 
-**Did it help, and how do I know:**
+Source: `results/criteria_after.md`.
 
-<!-- If it made things worse, say that. Honestly reported, that earns full
-     credit and is more interesting than one that worked. -->
+**Did it help, and how do I know:** Yes, for criterion 1: 2/5 before, 5/5 after, with the same five queries, same agent, cache off. In the after log `t-shirt`, `vintage t-shirt` and `tshirt` all selected "Y2K Baby Tee — Butterfly Print", and `tshirt` no longer hit the empty-search branch. Criteria 2-5 stayed 5/5, so nothing else regressed.
 
-
+Two caveats. My first "after" run was invalid: the regex I had written contained a stray backspace character instead of `` (the same bug as How I Used AI, Moment 2, and I had made it again by writing the file from a script), so the pattern never matched and criterion 1 stayed 2/5. I only trusted the second run, after checking the pattern in the file. And the improved "tee" top result for "t-shirt" is a baby tee, not necessarily the best match, since scoring is still plain keyword overlap.
 
 ---
 
 ## What's Still Broken
 
-<!-- For each criterion still missed: what you'd do, and why you stopped where
-     you did. "I ran out of time" is fine if it's true. Pretending nothing is
-     left is not. -->
+Nothing is currently missed against my criteria, but that is partly because the checks are narrow.
 
+- **Search ranking is plain keyword overlap.** "vintage tour shirt" ranks "Oversized Flannel Shirt" above the tour tee, since "shirt" matches the flannel and "tour" only a description. I'd add synonym handling and weight rarer words, but the data has about 40 listings and I stopped at the one failure my tests actually showed (the t-shirt spelling).
+- **Criterion 4 is checked on a fixed outfit string.** `score_criteria.py::c4` passes the same outfit text to `create_fit_card` for all 5 listings, so it never tests card quality against a real `suggest_outfit` output. I ran out of time to chain them.
+- **Fit-card price check is a string match.** A card that wrote "twenty-four bucks" would count as a miss, which the criterion allows for with 4 of 5.
+- **Only `search_listings` is on MCP.** The other two tools are still direct calls, and each MCP call starts a new server process, so it is slower than a held connection.
+- **Retry without the size filter was not built**, so an empty search with a size set still just stops and tells the user to loosen it.
 
 
 <!-- ═════════════════════════════════════════════════════════════════════

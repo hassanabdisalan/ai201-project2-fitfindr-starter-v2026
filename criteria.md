@@ -31,6 +31,10 @@ model that can be rate-limited. Not 3 of 5, because for the example queries in
 `python app.py examples` the listing titles and tags contain the keywords, so a
 miss would mean a real bug.
 
+> **Added in unit 4 (measurement, target unchanged at 4 of 5):** the five tries use five phrasings of the same item ("graphic tee", "band tee", "t-shirt", "vintage t-shirt", "tshirt", each "under $30"), and a try only passes if the selected item is a tee.
+>
+> **Why added:** one query repeated five times only measured one phrasing, so it couldn't show the keyword-matching weakness this criterion's own "why" names.
+
 ---
 
 ## 2. An impossible query stops before the second tool

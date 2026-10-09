@@ -16,7 +16,8 @@ from utils.data_loader import get_example_wardrobe, load_listings
 
 config.CACHE_ENABLED = False
 
-C1_QUERY = "vintage graphic tee under $30"
+C1_QUERIES = ["graphic tee under $30", "band tee under $30", "t-shirt under $30",
+              "vintage t-shirt under $30", "tshirt under $30"]
 C2_QUERY = "designer ballgown size XXS under $5"
 C3_QUERIES = ["vintage graphic tee under $30", "90s track jacket in size M",
               "denim jacket under $50", "platform sneakers size 8",
@@ -27,9 +28,11 @@ OUTFIT = "Pair it with baggy jeans, chunky white sneakers and a black zip hoodie
 
 
 def c1(i):
-    s = agent.run_agent(C1_QUERY, get_example_wardrobe(), trace_on=False)
-    ok = not s["error"] and bool(s["outfit_suggestion"]) and bool(s["fit_card"])
-    return ok, f"error={s['error']!r} fit_card={(s['fit_card'] or '')[:90]!r}"
+    s = agent.run_agent(C1_QUERIES[i], get_example_wardrobe(), trace_on=False)
+    top = (s["selected_item"] or {}).get("title", "")
+    ok = (not s["error"] and bool(s["outfit_suggestion"]) and bool(s["fit_card"])
+          and "tee" in top.lower())
+    return ok, f"q={C1_QUERIES[i]!r} selected={top!r} error={s['error']!r} fit_card={(s['fit_card'] or '')[:70]!r}"
 
 
 def c2(i):
