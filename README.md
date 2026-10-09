@@ -219,17 +219,36 @@ With the cache on, the same three runs printed one word-for-word identical capti
 
 | Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
 |---|---|---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |  |  |
+| 1. Matching query completes all three tools | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 2. Impossible query stops before suggest_outfit | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 3. search_results[0] id = selected_item id = id passed to suggest_outfit | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 4. Fit card: 2-4 sentences, price + platform (4 of 5), distinct openings | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5, openings distinct) |
+| 5. No result over the price ceiling | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+
+Produced by `score_criteria.py` (one check per criterion, written from the wording in criteria.md, cache off, five tries each; criteria 3 and 5 use five different queries, criterion 4 five different listings). Full output is in `results/criteria_before.md`.
 
 **Real output from one try**, pasted as text, naming the file and function
 that produced it:
 
+**Criterion 1** — produced by `agent.py::run_agent`, scored in `score_criteria.py::c1`:
 ```
-
+- try 1: PASS — error=None fit_card='Scored this butterfly print Y2K baby tee on Depop for $18 and I am fully locked into my 20'
+```
+**Criterion 2** — `agent.py::run_agent` (the `if not session["search_results"]` branch), scored in `score_criteria.py::c2`:
+```
+- try 1: PASS — suggest_outfit calls=0 message='Nothing matched "designer ballgown". Try to raise the price limit above $5; or drop the size (XXS) o'
+```
+**Criterion 3** — `agent.py::run_agent`, scored in `score_criteria.py::c3`:
+```
+- try 1: PASS — q='vintage graphic tee under $30' first=lst_002 selected=lst_002 suggest_outfit got=['lst_002']
+```
+**Criterion 4** — `tools.py::create_fit_card`, scored in `score_criteria.py::c4`:
+```
+- try 4: PASS — lst_005 brand=None sentences=3 price $32:True platform depop:True card='Copped these rust corduroy wide-leg pants on Depop for $32 and they are giving major off-duty skater energy. Honestly obsessed with how they hang. Just gonna throw them on with a beat-up black zip hoodie, some chunky white sneakers, and call it a day.'
+```
+**Criterion 5** — `tools.py::search_listings` called over MCP, scored in `score_criteria.py::c5`:
+```
+- try 1: PASS — q='vintage graphic tee under $30' ceiling=30.0 results=10 over=[]
 ```
 
 ---
