@@ -281,21 +281,43 @@ that produced it:
 **Happy path**
 
 ```
-
+[1] parse_query
+      in:  vintage graphic tee under $30
+      out: dict with keys: description, size, max_price
+[2] search_listings (via MCP)
+      in:  dict with keys: description, size, max_price
+      out: 10 items: Y2K Baby Tee — Butterfly Print, Graphic Tee — 2003 Tour Bootleg Style, Vintage Band Tee — Faded Grey … +7 more
+[3] branch
+      →    results found -> selected the top one
+[4] suggest_outfit
+      in:  dict with keys: item, wardrobe_items
+      out: **Outfit 1: Casual Y2K Contrast** Pair the baby tee with your **Baggy straight-leg jeans, dark wash** for clas…
+[5] create_fit_card
+      in:  dict with keys: item
+      out: scored this butterfly print Y2K baby tee on depop for eighteen bucks and honestly I'm obsessed. been living fo…
 ```
 
 **Empty search**
 
 ```
-
+[1] parse_query
+      in:  designer ballgown size XXS under $5
+      out: dict with keys: description, size, max_price
+[2] search_listings (via MCP)
+      in:  dict with keys: description, size, max_price
+      out: [] (empty)
+[3] branch
+      →    search empty -> stopping, no outfit or card
 ```
 
-**On the MCP move:** <!-- what changed in your code, and whether anything
-behaved differently afterwards. If the rewire didn't work, say exactly where it
-broke — the error text and the last thing that worked. That earns the point in
-full. -->
+**Failure modes triggered on purpose**
+
+- **Empty search** (`ballgown size XXS under $5`): stops at the branch with "Nothing matched "designer ballgown". Try to raise the price limit above $5; or drop the size (XXS) or try a neighbouring one; or use fewer or more general keywords…". No model call.
+- **Empty wardrobe** (`denim jacket under $50 --empty-wardrobe`): no crash, no empty string. suggest_outfit returned general styling ideas (cargo pants, slip dress, sneakers) instead of wardrobe items.
+- **Model unavailable** (bad key set via the environment, `denim jacket under $50`): the loop catches ModelUnavailable in agent.py and the user sees: "The model couldn't be reached, so I couldn't write the outfit or fit card. The model rejected your API key. Check GEMINI_API_KEY in your .env file, or create a fresh key at aistudio.google.com. Then run the same query again." Before this handler the exception was uncaught in run_agent().
 
 
+**On the MCP move:** search_listings is registered in mcp_server.py and agent.py's run_agent() calls it through mcp_client.call_tool; the other two tools are still direct calls. The return value was the same list of dicts, including `[]` for the empty case, so the branch still works. Nothing broke.
 
 ---
 

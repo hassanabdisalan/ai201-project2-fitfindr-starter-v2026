@@ -104,7 +104,7 @@ def _empty_search_message(parsed: dict) -> str:
 
 # ── planning loop ─────────────────────────────────────────────────────────────
 
-def run_agent(query: str, wardrobe: dict) -> dict:
+def run_agent(query: str, wardrobe: dict, trace_on: bool = False) -> dict:
     """
     Run the loop once and return the finished session.
 
@@ -162,41 +162,66 @@ def run_agent(query: str, wardrobe: dict) -> dict:
     """
     session = new_session(query, wardrobe)
 
+    def log(*args, **kwargs):
+        if trace_on:
+            trace.step(*args, **kwargs)
+
     # Each pass runs one step and decides, from what that step put in the
     # session, which step comes next. The only place the path forks is "search".
     step = "search"
     count = 0
-    while step != "done":
-        count += 1
-        trace.check_iterations(count)
+    try:
+        while step != "done":
+            count += 1
+            trace.check_iterations(count)
 
-        if step == "search":
-            session["parsed"] = parse_query(session["query"])
-            parsed = session["parsed"]
-            session["search_results"] = call_tool("search_listings", {
-                "description": parsed["description"],
-                "size": parsed["size"],
-                "max_price": parsed["max_price"],
-            })
-            # THE BRANCH: nothing found -> explain and stop; otherwise continue.
-            if not session["search_results"]:
-                session["error"] = _empty_search_message(parsed)
+            if step == "search":
+                session["parsed"] = parse_query(session["query"])
+                parsed = session["parsed"]
+                log("parse_query", inputs=session["query"], returned=parsed)
+                session["search_results"] = call_tool("search_listings", {
+                    "description": parsed["description"],
+                    "size": parsed["size"],
+                    "max_price": parsed["max_price"],
+                })
+                log("search_listings (via MCP)", inputs=parsed,
+                    returned=session["search_results"])
+                # THE BRANCH: nothing found -> explain and stop; otherwise continue.
+                if not session["search_results"]:
+                    session["error"] = _empty_search_message(parsed)
+                    log("branch", note="search empty -> stopping, no outfit or card")
+                    step = "done"
+                else:
+                    session["selected_item"] = session["search_results"][0]
+                    log("branch", note="results found -> selected the top one")
+                    step = "outfit"
+
+            elif step == "outfit":
+                session["outfit_suggestion"] = suggest_outfit(
+                    session["selected_item"], session["wardrobe"]
+                )
+                log("suggest_outfit",
+                    inputs={"item": session["selected_item"]["title"],
+                            "wardrobe_items": len(session["wardrobe"].get("items") or [])},
+                    returned=session["outfit_suggestion"])
+                step = "card"
+
+            elif step == "card":
+                session["fit_card"] = create_fit_card(
+                    session["outfit_suggestion"], session["selected_item"]
+                )
+                log("create_fit_card",
+                    inputs={"item": session["selected_item"]["title"]},
+                    returned=session["fit_card"])
                 step = "done"
-            else:
-                session["selected_item"] = session["search_results"][0]
-                step = "outfit"
-
-        elif step == "outfit":
-            session["outfit_suggestion"] = suggest_outfit(
-                session["selected_item"], session["wardrobe"]
-            )
-            step = "card"
-
-        elif step == "card":
-            session["fit_card"] = create_fit_card(
-                session["outfit_suggestion"], session["selected_item"]
-            )
-            step = "done"
+    except ModelUnavailable as exc:
+        session["error"] = (
+            "The model couldn't be reached, so I couldn't write the outfit or "
+            f"fit card. {exc} Then run the "
+            "same query again."
+        )
+        session["fit_card"] = None
+        log("model unavailable", note="stopping; no outfit or card")
 
     return session
 
