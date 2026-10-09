@@ -204,7 +204,7 @@ With the cache on, the same three runs printed one word-for-word identical capti
 
 - *What I asked for:* the MCP move, the trace calls and the model-unavailable handler, then a before/after test of one fix.
 - *What came back:* it worked, but the first bad-key test used a query that matched nothing, so it hit the empty-search branch and never reached the model; I had to rerun with a query that has results. Later, the tokenizer fix came back with a backspace character in the regex again (the same bug as Moment 2), so my first "after" run was a no-op that still scored 2/5.
-- *What I changed:* I checked the file for the 0x08 character, replaced it with a real ``, and only then ran the after log, which scored 5/5.
+- *What I changed:* I checked the file for the 0x08 character, replaced it with a real `\b`, and only then ran the after log, which scored 5/5.
 
 <!-- ═══════════════════════ UNIT 4 — THE TEST ═══════════════════════
 
@@ -360,7 +360,7 @@ I missed nothing, so there is no miss to diagnose. I'm reading that as a sign th
 
      `python run_eval.py --label after` -->
 
-**What I changed:** one line in `tools.py::_tokens`: before splitting a query or a listing into words, `re.sub(r"t[\s-]?shirts?", "tee", ...)` turns "t-shirt", "t shirt" and "tshirt" into "tee". Nothing else in the agent changed.
+**What I changed:** one line in `tools.py::_tokens`: before splitting a query or a listing into words, `re.sub(r"\bt[\s-]?shirts?\b", "tee", ...)` turns "t-shirt", "t shirt" and "tshirt" into "tee". Nothing else in the agent changed.
 
 **Which failure it was meant to fix:** the weakness named under Diagnoses for criterion 1. My original criterion-1 runs all used one query (`vintage graphic tee under $30`), so I added a tighter measurement: five phrasings of the same item, each of which must complete all three tools and select a tee. Run before the fix, that measurement was MISSED (2/5): `t-shirt` and `vintage t-shirt` selected "Oversized Flannel Shirt" because the tokenizer read "t-shirt" as the letter `t` plus `shirt`, and `tshirt` matched nothing, so the agent stopped at the empty-search branch. The place was the tool (`search_listings`, in its tokenizer); the model was not involved.
 
@@ -392,7 +392,7 @@ Source: `results/criteria_after.md`.
 
 **Did it help, and how do I know:** Yes, for criterion 1: 2/5 before, 5/5 after, with the same five queries, same agent, cache off. In the after log `t-shirt`, `vintage t-shirt` and `tshirt` all selected "Y2K Baby Tee — Butterfly Print", and `tshirt` no longer hit the empty-search branch. Criteria 2-5 stayed 5/5, so nothing else regressed.
 
-Two caveats. My first "after" run was invalid: the regex I had written contained a stray backspace character instead of `` (the same bug as How I Used AI, Moment 2, and I had made it again by writing the file from a script), so the pattern never matched and criterion 1 stayed 2/5. I only trusted the second run, after checking the pattern in the file. And the improved "tee" top result for "t-shirt" is a baby tee, not necessarily the best match, since scoring is still plain keyword overlap.
+Two caveats. My first "after" run was invalid: the regex I had written contained a stray backspace character instead of `\b` (the same bug as How I Used AI, Moment 2, and I had made it again by writing the file from a script), so the pattern never matched and criterion 1 stayed 2/5. I only trusted the second run, after checking the pattern in the file. And the improved "tee" top result for "t-shirt" is a baby tee, not necessarily the best match, since scoring is still plain keyword overlap.
 
 ---
 
